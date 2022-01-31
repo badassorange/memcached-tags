@@ -3,9 +3,15 @@
 /**
  * Test dependencies
  */
-var assert = require('assert')
-  , common = require('./common')
-  , Memcached = require('../');
+
+const chai = require('chai');
+const common = require('./common');
+const Memcached = require('memcached');
+const tags = require('../');
+
+const expect = chai.expect;
+chai.use(require('chai-as-promised'));
+
 
 global.testnumbers = global.testnumbers || +(Math.random(10) * 1000000).toFixed();
 
@@ -13,124 +19,84 @@ global.testnumbers = global.testnumbers || +(Math.random(10) * 1000000).toFixed(
  * Expresso test suite for all `get` related
  * memcached commands
  */
-describe('Memcached CAS', function () {
+describe('Memcached CAS (promisify/tags)', () => {
   /**
    * For a proper CAS update in memcached you will need to know the CAS value
    * of a given key, this is done by the `gets` command. So we will need to make
    * sure that a `cas` key is given.
    */
-  it('set and gets for cas result', function (done) {
-    var memcached = new Memcached(common.servers.single)
+  it('set and gets for cas result', async () => {
+
+    const memcached = tags(new Memcached(common.servers.single))
         , message = common.alphabet(256)
-        , testnr = ++global.testnumbers
-        , callbacks = 0;
+        , testnr = ++global.testnumbers;
 
-      memcached.set('test:' + testnr, message, 1000, function (error, ok) {
-        ++callbacks;
+    const setAnswr = await memcached.set(`test:${testnr}`, message, 1000);
+    expect(setAnswr).is.equal(true);
+    const answer = await memcached.gets(`test:${testnr}`);
 
-        assert.ok(!error);
-        ok.should.be.true;
+    expect(answer).to.be.a('object');
+    expect(!!answer.cas).to.be.equal(true);
+    expect(answer[`test:${testnr}`]).to.be.equal(message);
 
-        memcached.gets('test:' + testnr, function (error, answer) {
-          ++callbacks;
-
-          assert.ok(!error);
-
-          assert.ok(typeof answer === 'object');
-          assert.ok(!!answer.cas);
-          answer['test:' + testnr].should.eql(message);
-
-          memcached.end(); // close connections
-          assert.equal(callbacks, 2);
-          done();
-        });
-      });
+    memcached.end(); // close connections
   });
 
   /**
    * Create a successful cas update, so we are sure we send a cas request correctly.
    */
-  it('successful cas update', function(done) {
-    var memcached = new Memcached(common.servers.single)
+  it('successful cas update', async () => {
+    const memcached = tags(new Memcached(common.servers.single))
         , message = common.alphabet(256)
-        , testnr = ++global.testnumbers
-        , callbacks = 0;
+        , testnr = ++global.testnumbers;
 
-      memcached.set('test:' + testnr, message, 1000, function (error, ok) {
-        ++callbacks;
-        assert.ok(!error);
-        ok.should.be.true;
+    const setAnswr = await memcached.set(`test:${testnr}`, message, 1000);
+    expect(setAnswr).is.equal(true);
 
-        memcached.gets('test:' + testnr, function (error, answer) {
-          ++callbacks;
-          assert.ok(!error);
-          assert.ok(!!answer.cas);
+    const getsAnswr = await memcached.gets(`test:${testnr}`);
+    expect(!!getsAnswr.cas).is.equal(true);
 
-          // generate new message for the cas update
-          message = common.alphabet(256);
-          memcached.cas('test:' + testnr, message, answer.cas, 1000, function (error, answer) {
-            ++callbacks;
-            assert.ok(!error);
-            assert.ok(!!answer);
+    // generate new message for the cas update
+    const messageCas = common.alphabet(256);
+    const casAnswr = await memcached.cas(`test:${testnr}`, messageCas, getsAnswr.cas, 1000);
+    expect(!!casAnswr).is.equal(true);
 
-            memcached.get('test:' + testnr, function (error, answer) {
-              ++callbacks;
+    const answer = await memcached.get(`test:${testnr}`);
+    expect(answer).is.equal(messageCas);
 
-              assert.ok(!error);
-              answer.should.eql(message);
-
-              memcached.end(); // close connections
-              assert.equal(callbacks, 4);
-              done();
-            });
-          });
-        });
-      });
+    memcached.end(); // close connections
   });
 
   /**
    * Create a unsuccessful cas update, which would indicate that the server has changed
    * while we where doing nothing.
    */
-  it('unsuccessful cas update', function (done) {
-     var memcached = new Memcached(common.servers.single)
+  it('unsuccessful cas update', async () => {
+
+    const memcached = tags(new Memcached(common.servers.single))
         , message = common.alphabet(256)
-        , testnr = ++global.testnumbers
-        , callbacks = 0;
+        , testnr = ++global.testnumbers;
 
-      memcached.set('test:' + testnr, message, 1000, function (error, ok) {
-        ++callbacks;
-        assert.ok(!error);
-        ok.should.be.true;
+    expect(
+      await memcached.set('test:' + testnr, message, 1000)
+    ).is.equal(true);
+    
+    const getsAnswr = await memcached.gets(`test:${testnr}`);
+    expect(!!getsAnswr.cas).is.equal(true);
 
-        memcached.gets('test:' + testnr, function (error, answer) {
-          ++callbacks;
-          assert.ok(!error);
-          assert.ok(!!answer.cas);
+    // generate new message
+    const messageCas = common.alphabet(256);
+    expect(
+      await memcached.set('test:' + testnr, messageCas, 1000)
+    ).is.equal(true);
 
-          // generate new message
-          message = common.alphabet(256);
-          memcached.set('test:' + testnr, message, 1000, function () {
-            ++callbacks;
+    expect(
+      await memcached.cas(`test:${testnr}`, message, getsAnswr.cas, 1000)
+    ).is.equal(false);
 
-            memcached.cas('test:' + testnr, message, answer.cas, 1000, function (error, answer) {
-              ++callbacks;
-              assert.ok(!error);
-              assert.ok(!answer);
+    expect(
+      await memcached.get(`test:${testnr}`)
+    ).is.equal(messageCas);
 
-              memcached.get('test:' + testnr, function (error, answer) {
-                ++callbacks;
-
-                assert.ok(!error);
-                answer.should.eql(message);
-
-                memcached.end(); // close connections
-                assert.equal(callbacks, 5);
-                done();
-              });
-            });
-          });
-        });
-      });
   });
 });

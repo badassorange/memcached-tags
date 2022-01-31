@@ -1,12 +1,15 @@
 'use strict';
-
 /**
  * Test dependencies
  */
-var assert = require('assert')
-  , fs = require('fs')
-  , common = require('./common')
-  , Memcached = require('../');
+
+const chai = require('chai');
+const common = require('./common');
+const Memcached = require('memcached');
+const tags = require('../');
+
+const expect = chai.expect;
+chai.use(require('chai-as-promised'));
 
 global.testnumbers = global.testnumbers || +(Math.random(10) * 1000000).toFixed();
 
@@ -14,31 +17,23 @@ global.testnumbers = global.testnumbers || +(Math.random(10) * 1000000).toFixed(
  * Expresso test suite for all `add` related
  * memcached commands
  */
-describe('Memcached ADD', function () {
+describe('Memcached ADD (promisify/tags)', () => {
   /**
    * Make sure that adding a key which already exists returns an error.
    */
-  it('fail to add an already existing key', function (done) {
-    var memcached = new Memcached(common.servers.single)
-        , message = common.alphabet(256)
-        , testnr = ++global.testnumbers
-        , callbacks = 0;
+  it('fail to add an already existing key', async () => {
+    const memcached = tags(new Memcached(common.servers.single))
+      , message = common.alphabet(256)
+      , testnr = ++global.testnumbers;
 
-      memcached.set('test:' + testnr, message, 1000, function (error, ok) {
-        ++callbacks;
+    const setRes = await memcached.set(`test:${testnr}`, message, 1000);
+    expect(setRes).is.equal(true);
 
-        assert.ok(!error);
-        ok.should.be.true;
+    await expect(
+      memcached.add(`test:${testnr}`, message, 1000)
+    ).to.be.rejectedWith('Item is not stored')
 
-        memcached.add('test:' + testnr, message, 1000, function (error, answer) {
-          ++callbacks;
-
-          assert.ok(error);
-
-          memcached.end(); // close connections
-          assert.equal(callbacks, 2);
-          done();
-        });
-      });
+    memcached.end(); // close connections
   });
 });
+

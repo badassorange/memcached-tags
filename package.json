@@ -1,37 +1,36 @@
 {
-  "name": "memcached",
-  "version": "2.3.0",
-  "author": "Arnout Kazemier",
-  "description": "A fully featured Memcached API client, supporting both single and clustered Memcached servers through consistent hashing and failover/failure. Memcached is rewrite of nMemcached, which will be deprecated in the near future.",
-  "main": "index",
-  "keywords": [
-    "InnoDB memcached API",
-    "cache",
-    "client",
-    "cluster",
-    "failover",
-    "hashing",
-    "membase",
-    "memcache",
-    "memcached",
-    "nMemcached",
-    "nosql"
-  ],
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "http://github.com/3rd-Eden/node-memcached.git"
-  },
-  "dependencies": {
-    "hashring": "3.2.x",
-    "jackpot": ">=0.0.6"
-  },
-  "devDependencies": {
-    "mocha": "*",
-    "should": "*",
-    "pre-commit": "*"
+  "name": "memcached-tags",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "directories": {
+    "lib": "lib",
+    "test": "test"
   },
   "scripts": {
-    "test": "mocha $(find test -name '*.test.js') --exit"
+    "test": "mocha ./test/*.test.js --exit",
+    "test:watch": "mocha  -w ./test/*-get-set*.test.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/badassorange/node-memcached-tags.git"
+  },
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/badassorange/node-memcached-tags/issues"
+  },
+  "homepage": "https://github.com/badassorange/node-memcached-tags#readme",
+  "devDependencies": {
+    "assert": "^2.0.0",
+    "chai": "^4.3.4",
+    "chai-as-promised": "^7.1.1",
+    "eslint": "^7.27.0",
+    "eslint-config-google": "^0.14.0",
+    "mocha": "^8.4.0",
+    "should": "^13.2.3"
+  },
+  "dependencies": {
+    "memcached": "^2.2.2"
   }
 }
